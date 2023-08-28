@@ -1,0 +1,175 @@
+---
+title: "Canada_GDP"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+# Load required packages
+library(dplyr)
+library(tidyverse)
+# Load the data (replace 'your_data.csv' with your actual data file name)
+data <- read.csv(file.choose())
+data
+
+# Select and rename columns
+selected_data <- data %>%
+  select(REF_DATE, GEO, Estimates, VALUE) %>%
+  rename(Year = REF_DATE,
+         Province = GEO,
+         Measure = Estimates,
+         Millions = VALUE)
+
+# Show the first few rows of the selected and renamed data
+head(selected_data)
+unique(data$GEO)
+###############################################################################
+
+
+# Define a mapping of province names to their abbreviations
+province_mapping <- c("Alberta" = "AB",
+                      "British Columbia" = "BC",
+                      "Manitoba" = "MB",
+                      "New Brunswick" = "NB",
+                      "Newfoundland and Labrador" = "NL",
+                      "Northwest Territories" = "NT",
+                      "Nova Scotia" = "NS",
+                      "Nunavut" = "NU",
+                      "Ontario" = "ON",
+                      "Prince Edward Island" = "PE",
+                      "Quebec" = "QC",
+                      "Saskatchewan" = "SK",
+                      "Yukon" = "YT")
+
+# Replace province names with abbreviations and filter out "Outside Canada"
+final_data <- selected_data %>%
+  mutate(Province = ifelse(Province == "Outside Canada", NA, Province)) %>%
+  drop_na() %>%
+  mutate(Province = province_mapping[Province])
+
+
+# Show the first few rows of the final data
+head(final_data)
+
+###############################################################################
+#Calculate Total GDP for Each Year
+total_gdp_by_year <- final_data %>%
+  group_by(Year) %>%
+  summarize(Total_GDP = sum(Millions))
+
+print(total_gdp_by_year)
+
+#Compare GDP between Provinces:
+library(ggplot2)
+
+year_to_compare <- 2010
+measure_to_compare <- "Final consumption expenditure"
+
+gdp_comparison_plot <- final_data %>%
+  filter(Year == year_to_compare, Measure == measure_to_compare) %>%
+  ggplot(aes(x = Province, y = Millions, fill = Province)) +
+  geom_bar(stat = "identity") +
+  labs(title = paste("GDP Comparison for", year_to_compare, measure_to_compare),
+       x = "Province",
+       y = "GDP (Millions)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(gdp_comparison_plot)
+
+###############################################################################
+#Identify Top Measures for NB
+province_to_analyze <- "NB"
+
+top_measures_for_province <- final_data %>%
+  filter(Province == province_to_analyze) %>%
+  group_by(Measure) %>%
+  summarize(Total_GDP = sum(Millions)) %>%
+  arrange(desc(Total_GDP))
+
+print(top_measures_for_province)
+
+###############################################################################
+library(ggplot2)
+library(dplyr)
+
+# Calculate total GDP for each measure across all provinces
+top_measures_all_provinces <- final_data %>%
+  group_by(Measure) %>%
+  summarize(Total_GDP = sum(Millions)) %>%
+  arrange(desc(Total_GDP))
+
+# Select the top N measures (you can adjust N as needed)
+top_n_measures <- 5
+
+top_measures_for_plot <- top_measures_all_provinces %>%
+  top_n(top_n_measures, Total_GDP) %>%
+  arrange(Total_GDP)
+
+# Create a bar plot to visualize top measures
+ggplot(top_measures_for_plot, aes(x = reorder(Measure, Total_GDP), y = Total_GDP, fill = Measure)) +
+  geom_bar(stat = "identity") +
+  labs(title = paste("Top", top_n_measures, "Measures Contributing to GDP"),
+       x = "Measure",
+       y = "Total GDP (Trillion)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE) +  # Remove legend for fill
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6))  # Format y-axis labels in millions
+
+###############################################################################
+library(ggplot2)
+library(dplyr)
+
+# Filter data for the "Exports of goods and services" measure
+exports_data <- final_data %>%
+  filter(Measure == "Exports of goods and services")
+
+# Calculate total exports for each province
+exports_by_province <- exports_data %>%
+  group_by(Province, Year) %>%
+  summarize(Total_Exports = sum(Millions))
+
+# Select the top 5 provinces by total exports
+top_n_provinces <- 5
+top_exports_provinces <- exports_by_province %>%
+  group_by(Province) %>%
+  summarize(Total_Exports = sum(Total_Exports)) %>%
+  arrange(desc(Total_Exports)) %>%
+  top_n(top_n_provinces)
+
+# Create a timeline plot for top 5 provinces
+ggplot(exports_by_province %>%
+         filter(Province %in% top_exports_provinces$Province), 
+       aes(x = as.Date(paste0(Year, "-01-01")), y = Total_Exports, color = Province)) +
+  geom_line(size = 1.5) +
+  labs(title = paste("Timeline Analysis of Top", top_n_provinces, "Provinces with Exports"),
+       x = "Year",
+       y = "Total Exports (Trillions)") +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")  # Adjust legend position
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
